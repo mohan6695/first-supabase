@@ -10,13 +10,31 @@ console.log("Hello from Functions!")
 
 const supabase = createClient(
   Deno.env.get("https://hmpljnowqbipwnjscptb.supabase.co")!,
-  Deno.env.get("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtcGxqbm93cWJpcHduanNjcHRiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzM5ODIzNCwiZXhwIjoyMDUyOTc0MjM0fQ.1HN9-2uiYwaLT59tkwvzGSCT3qn_3Ac6Jqh6B3URK6s")!,);
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,);
 
 
 Deno.serve(async (req) => {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ msg: "Missing authorization header" }), {
+      status: 401,
+    });
+  }
+
+  const jwtToken = authHeader.split(" ")[1];
+
+  // Verify the token (optional, Supabase does this automatically for RLS)
+  const { data: user, error } = await supabase.auth.getUser(jwtToken);
+  if (error) {
+    return new Response(JSON.stringify({ msg: "Invalid token" }), {
+      status: 401,
+    });
+  }
+
+
   const { data:post_text, error} = await supabase.from("posts").select("post_text")
   const data = {
-    message: `Hello ${post_text?.post_text}!`,
+    message: `Hello ${post_text?.[0]?.post_text}!`,
   }
 
   return new Response(
